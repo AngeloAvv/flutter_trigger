@@ -12,7 +12,7 @@ on:
 
 jobs:
   build:
-    runs-on: ${{ inputs.platform == 'ios' && 'macos-latest' || 'ubuntu-latest' }}
+    runs-on: ${{ inputs.platform == 'windows' && 'windows-latest' || contains('ios,macos', inputs.platform) && 'macos-latest' || 'ubuntu-latest' }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
