@@ -265,4 +265,4 @@ TriggerListener(
 
 ## License
 
-MacRecoveryX is available under the GNU General Public License Version 3. See the COPYING file for more info.
+flutter_trigger is available under the GNU General Public License Version 3. See the COPYING file for more info.
