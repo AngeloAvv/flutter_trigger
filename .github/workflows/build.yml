@@ -33,9 +33,6 @@ jobs:
             ninja-build pkg-config \
             libgtk-3-dev liblzma-dev \
             libstdc++-12-dev
-      - name: Setup Android SDK
-        if: ${{ inputs.platform == 'android' }}
-        uses: android-actions/setup-android@v3
       - name: Build Android AAB
         if: ${{ inputs.platform == 'android' }}
         working-directory: ${{ inputs.working-directory }}/android
