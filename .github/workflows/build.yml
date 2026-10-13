@@ -15,7 +15,7 @@ jobs:
     runs-on: ${{ inputs.platform == 'windows' && 'windows-latest' || contains('ios,macos', inputs.platform) && 'macos-latest' || 'ubuntu-latest' }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
       - name: Setup Flutter
         uses: ./.github/actions/setup
       - name: Set up JDK 17
