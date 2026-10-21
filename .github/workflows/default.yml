@@ -61,6 +61,8 @@ jobs:
       working-directory: example
 
   release:
+    permissions:
+      contents: write
     needs:
       - build
       - checks
@@ -69,6 +71,8 @@ jobs:
     uses: ./.github/workflows/release.yml
 
   publish:
+    permissions:
+      id-token: write
     needs:
       - release
     name: Publish
