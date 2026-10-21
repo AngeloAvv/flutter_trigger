@@ -1,0 +1,86 @@
+---
+title: "Events and sessions"
+description: "Logging behaviour, metadata, sessions and privacy controls."
+---
+
+## Logging events
+
+```dart
+final nudge = Nudge.instance;
+
+nudge.logEvent('app_open');
+nudge.logEvent('purchase', {
+  'item_id': 'premium_sub_01',
+  'price': 29.99,
+  'currency': 'EUR',
+  'first_purchase': true,
+});
+```
+
+Each event stores its name, the current time (millisecond precision), the current session and the
+metadata. Logging is synchronous, cheap, and **never throws**:
+
+| Metadata value        | Stored as                          |
+| --------------------- | ---------------------------------- |
+| `String`, `int`, `double`, `bool` | as is                  |
+| `null`                | dropped                            |
+| `DateTime`            | milliseconds since the epoch (`int`) |
+| `enum`                | its `name`                         |
+| anything else         | its `toString()`, with a debug message |
+
+Event names must be non-empty and must not start with `$`, which is reserved for internal events;
+invalid names are ignored with a debug message.
+
+<Info>
+  Keep event names in one place, e.g. an `abstract final class Events` with constants. A typo in a
+  name silently creates a different event.
+</Info>
+
+## Sessions
+
+A session starts when the package is initialized and again whenever the app returns to the
+foreground after at least `sessionTimeout` in the background (30 minutes by default), the same
+convention most analytics tools use.
+
+```dart
+await Nudge.initialize(sessionTimeout: const Duration(minutes: 15));
+```
+
+Each session start is logged as an internal `$session_start` event, which powers
+`when().app().sessions()`, `when().app().firstSeen()` and `when().app().previousSession()`.
+`nudge.sessionId` returns the current session.
+
+Session constraints in conditions are resolved when the condition is evaluated, not when it is
+built: a condition declared at startup with `.session().current()` keeps following the current
+session after it changes.
+
+## Lifetime stats
+
+Next to the log, the engine keeps lifetime counters per event name, updated in the same write as
+the event: total count, first and last occurrence, distinct active days and the current streak.
+They are never deleted by the retention policy, so conditions that cover **all** occurrences of an
+event (no session, time or attribute filter) keep their answer even after old events are purged:
+
+```dart
+// Answered from lifetime stats: survives log rotation
+nudge.when().event('purchase').exists()
+
+// Answered from the log: limited by the retention window
+nudge.when().event('purchase').inLast(const Duration(days: 30)).count()
+```
+
+See [Storage and retention](/storage).
+
+## Privacy controls
+
+Everything stays on the device. Two switches cover consent and erasure:
+
+```dart
+// Honour an analytics opt-out: nothing is logged, nothing fires.
+// The choice is not persisted: restore it from your own settings at startup.
+nudge.enabled = false;
+
+// Erase every event, stat and fire record, e.g. on logout or on request.
+// A new session starts.
+nudge.clear();
+```

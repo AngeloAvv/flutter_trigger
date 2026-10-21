@@ -1,0 +1,46 @@
+---
+title: "Guest to account"
+description: "Suggest creating an account once the user has something worth saving."
+---
+
+## Goal
+
+Convert anonymous users into registered ones, once an account protects something they care about.
+
+## The rule
+
+- At least two days since the first open — Firebase's own targeting example
+- At least three notes created: there is content to lose
+- Not signed in
+- At most three times, a week apart, never again once accepted
+
+## Code
+
+```dart
+void registerGuestToAccount(Nudge nudge) {
+  nudge
+      .define('create_account_nudge')
+      .when(
+        NudgeCondition.all([
+          nudge.when().app().firstSeen().olderThan(const Duration(days: 2)),
+          nudge.when().event('note_created').count().greaterThanOrEqual(3),
+          nudge.when().event('signed_in').exists().not(),
+        ]),
+      )
+      .cooldown(const Duration(days: 7))
+      .maxFires(3)
+      .onOutcome(NudgeOutcome.accepted, disable: true)
+      .register();
+}
+```
+
+## Pitfalls
+
+- Keep the nudge optional. Apple's App Review Guideline 5.1.1(v) asks apps without significant
+  account-based features to let people use them without logging in.
+- If nudges are per user, call `nudge.clear()` on logout so the next user starts from scratch.
+
+## Sources
+
+- [Firebase — In-App Messaging use cases](https://firebase.google.com/docs/in-app-messaging/explore-use-cases)
+- [Apple — App Review Guidelines](https://developer.apple.com/app-store/review/guidelines/)

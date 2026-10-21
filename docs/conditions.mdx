@@ -1,0 +1,178 @@
+---
+title: "Conditions"
+description: "The fluent DSL: counts, attributes, sessions, days, time and composition."
+---
+
+Every condition starts from `nudge.when()` and ends with a comparison. Comparisons are always
+`greaterThan`, `greaterThanOrEqual`, `lessThan`, `lessThanOrEqual` and `equalTo`.
+
+## Counting events
+
+```dart
+// More than 5 shares, ever
+nudge.when().event('share').count().greaterThan(5)
+
+// At least one purchase, ever
+nudge.when().event('purchase').exists()
+```
+
+## Narrowing the selection
+
+Narrowing steps can be chained in any order before the final metric.
+
+### By attribute
+
+```dart
+nudge.when().event('purchase').where('currency').equalTo('EUR').count().greaterThan(2)
+nudge.when().event('purchase').where('total').greaterThanOrEqual(50).exists()
+nudge.when().event('screen_view').where('screen').oneOf(['search', 'results']).count()
+nudge.when().event('signup').where('referrer').exists().exists()
+```
+
+`equalTo`, `notEqualTo`, `greaterThan`, `greaterThanOrEqual`, `lessThan`, `lessThanOrEqual`,
+`oneOf` and `exists` are available. `notEqualTo` also matches events without the attribute. Numeric
+comparisons treat `int` and `double` values alike.
+
+### By relative time
+
+```dart
+// At least 3 workouts in the last 7 days, measured at every evaluation
+nudge.when().event('workout').inLast(const Duration(days: 7)).count().greaterThanOrEqual(3)
+
+// Not practiced yet today (since local midnight)
+nudge.when().event('lesson_completed').today().exists().not()
+```
+
+<Warning>
+  Prefer `inLast` to absolute dates computed with `DateTime.now()`. An absolute date is frozen when
+  the condition is built; `inLast` moves with time.
+</Warning>
+
+### By absolute time
+
+```dart
+nudge.when().event('login').timestamp().greaterThan(DateTime(2026, 1, 1)).count()
+```
+
+`greaterThan`, `greaterThanOrEqual`, `lessThan`, `lessThanOrEqual` and `equalTo` work at
+millisecond precision. Several constraints intersect.
+
+### By session
+
+```dart
+// In the current session
+nudge.when().event('click').session().current().count().greaterThan(2)
+
+// In any other session
+nudge.when().event('ad_view').session().other().exists()
+```
+
+## Metrics
+
+### Distinct sessions
+
+```dart
+// Logged in during more than 5 different sessions
+nudge.when().event('login').session().count().greaterThan(5)
+```
+
+### Active days and streaks
+
+```dart
+// Practiced on at least 10 different days
+nudge.when().event('lesson_completed').activeDays().greaterThanOrEqual(10)
+
+// Practiced every day for a week, ending today or yesterday
+nudge.when().event('lesson_completed').streak().greaterThanOrEqual(7)
+```
+
+Days follow the device's local midnight. A streak survives until a full local day passes without
+the event.
+
+### Attribute aggregates
+
+```dart
+final price = nudge.when().event('purchase').attribute('price');
+
+price.sum().greaterThan(100)   // 0 when there are no values
+price.avg().greaterThan(20)    // never met when there are no values
+price.min().lessThan(5)
+price.max().greaterThanOrEqual(99.99)
+
+// Number of distinct values: explored at least 3 different features
+nudge.when().event('feature_used').attribute('feature').distinct().greaterThanOrEqual(3)
+```
+
+Only numeric values are aggregated; `distinct` counts values of any type.
+
+### Recency and inactivity
+
+```dart
+// Used to open the app, but not in the last 14 days
+nudge.when().event('app_open').lastOccurrence().olderThan(const Duration(days: 14))
+
+// Signed up in the last 24 hours
+nudge.when().event('signup').firstOccurrence().newerThan(const Duration(hours: 24))
+```
+
+Both are never met if the event never happened.
+
+### App-wide metrics
+
+```dart
+final app = nudge.when().app();
+
+app.sessions().greaterThanOrEqual(5)                     // sessions so far, current included
+app.activeDays().greaterThanOrEqual(3)                   // days with any activity
+app.streak().greaterThanOrEqual(7)                       // consecutive days with any activity
+app.firstSeen().olderThan(const Duration(days: 7))       // install age
+app.previousSession().olderThan(const Duration(days: 14)) // time away before this session
+```
+
+### Nudge history
+
+The fire history of a nudge, or of a group of nudges, is queryable like events. This is how
+nudges are chained, see [Nudges](/nudges#chaining).
+
+```dart
+nudge.when().fired('nps_survey').outcome('promoter').inLast(const Duration(days: 30)).exists()
+nudge.when().group('interruptive').inCurrentSession().exists()
+nudge.when().fired('rating_prompt').lastFired().olderThan(const Duration(days: 90))
+```
+
+## Composition
+
+```dart
+final heavyUser = nudge.when().event('use_feature').count().greaterThan(10);
+final purchased = nudge.when().event('purchase').exists();
+
+heavyUser.and(purchased.not())
+heavyUser.or(purchased)
+
+NudgeCondition.all([a, b, c])
+NudgeCondition.any([a, b, c])
+```
+
+Composite conditions are evaluated in one pass against the same snapshot, so a watcher never sees
+an intermediate, inconsistent value.
+
+## Evaluating and watching
+
+```dart
+final condition = nudge.when().event('share').count().greaterThan(5);
+
+condition.evaluate();      // bool, now
+condition.explain();       // ConditionResult, printable
+condition.watch().listen((value) { ... });
+```
+
+`watch()` emits the current value on listen and then every change. Watched conditions are
+re-evaluated:
+
+- after events are logged — a burst logged in the same frame causes one evaluation
+- after nudges fire or complete
+- when the app returns to the foreground
+- every `reevaluationInterval` (1 minute by default) while there are listeners and the app is in
+  the foreground, so time-based conditions update without new events
+
+Cancel your subscriptions when you no longer need them; the widgets do it for you.

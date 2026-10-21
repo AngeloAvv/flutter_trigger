@@ -1,0 +1,51 @@
+{
+  "$schema": "https://docs.page/schema.json",
+  "name": "nudge",
+  "description": "A local-first nudge engine for Flutter: log behaviour on device, fire rate prompts, upsells and tips at the right moment.",
+  "theme": {
+    "primary": "#673AB7"
+  },
+  "social": {
+    "github": "https://github.com/AngeloAvv/nudge"
+  },
+  "sidebar": [
+    {
+      "group": "Overview",
+      "pages": [
+        { "title": "Introduction", "href": "/" },
+        { "title": "Getting started", "href": "/getting-started" },
+        { "title": "Core concepts", "href": "/concepts" }
+      ]
+    },
+    {
+      "group": "Guides",
+      "pages": [
+        { "title": "Events and sessions", "href": "/events" },
+        { "title": "Conditions", "href": "/conditions" },
+        { "title": "Funnels", "href": "/funnels" },
+        { "title": "Nudges", "href": "/nudges" },
+        { "title": "Widgets", "href": "/widgets" },
+        { "title": "Testing and debugging", "href": "/testing" },
+        { "title": "Storage and retention", "href": "/storage" }
+      ]
+    },
+    {
+      "group": "Recipes",
+      "pages": [
+        { "title": "Overview", "href": "/recipes" },
+        { "title": "Rating prompt", "href": "/recipes/rating-prompt" },
+        { "title": "Frequency capping", "href": "/recipes/frequency-capping" },
+        { "title": "Paywall after usage", "href": "/recipes/paywall" },
+        { "title": "Onboarding nudge", "href": "/recipes/onboarding" },
+        { "title": "Abandoned cart", "href": "/recipes/abandoned-cart" },
+        { "title": "Feature discovery", "href": "/recipes/feature-discovery" },
+        { "title": "Streaks and habits", "href": "/recipes/streaks" },
+        { "title": "Win-back", "href": "/recipes/win-back" },
+        { "title": "Push permission", "href": "/recipes/push-permission" },
+        { "title": "NPS and referral", "href": "/recipes/nps-and-referral" },
+        { "title": "Activation milestone", "href": "/recipes/activation" },
+        { "title": "Guest to account", "href": "/recipes/guest-to-account" }
+      ]
+    }
+  ]
+}

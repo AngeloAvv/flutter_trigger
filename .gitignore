@@ -32,3 +32,7 @@ migrate_working_dir/
 
 # FVM Version Cache
 .fvm/
+# ObjectBox native library downloaded for local tests
+/lib/libobjectbox.*
+/lib/objectbox.dll
+/download/

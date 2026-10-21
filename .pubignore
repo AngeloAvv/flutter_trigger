@@ -1,0 +1,49 @@
+# Files excluded from the published package archive.
+#
+# NOTE: .pubignore REPLACES .gitignore for pub — it does not extend it. Every
+# rule that matters for the archive has to be repeated here, otherwise local
+# artifacts would be published straight from a working copy.
+
+# docs.page sources. The service reads them from the Git repository, not from
+# the pub archive, and pub's layout convention reserves the singular "doc/" for
+# a top-level documentation directory — a plural "docs/" in the archive makes
+# `flutter pub publish --dry-run` emit a warning. Keeping them out of the
+# archive satisfies both, and pub.dev does not render .mdx anyway.
+docs/
+docs.json
+
+# CI and toolchain pinning: only meaningful inside the Git repository.
+.github/
+.fvm/
+.fvmrc
+renovate.json
+
+# ObjectBox native library downloaded for local tests.
+/lib/libobjectbox.*
+/lib/objectbox.dll
+
+# example/ is intentionally NOT ignored: pub.dev renders it on the package page.
+
+# Mirrors .gitignore
+*.class
+*.log
+*.pyc
+*.swp
+.DS_Store
+.atom/
+.buildlog/
+.history
+.svn/
+migrate_working_dir/
+*.iml
+*.ipr
+*.iws
+.idea/
+/pubspec.lock
+**/doc/api/
+.dart_tool/
+.flutter-plugins-dependencies
+build/
+/coverage/
+.claude/
+CLAUDE.md

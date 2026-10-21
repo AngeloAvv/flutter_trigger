@@ -1,0 +1,157 @@
+{
+  "_note1": "KEEP THIS FILE! Check it into a version control system (VCS) like git.",
+  "_note2": "ObjectBox manages crucial IDs for your object model. See docs for details.",
+  "_note3": "If you have VCS merge conflicts, you must resolve them according to ObjectBox docs.",
+  "entities": [
+    {
+      "id": "1:6210494049336960867",
+      "lastPropertyId": "5:5485211827436276531",
+      "name": "NudgeEventEntity",
+      "properties": [
+        {
+          "id": "1:3061002809722847703",
+          "name": "id",
+          "type": 6,
+          "flags": 1
+        },
+        {
+          "id": "2:7608082688468930181",
+          "name": "name",
+          "indexId": "1:3101915177024082293",
+          "type": 9,
+          "flags": 2048
+        },
+        {
+          "id": "3:5311837577667464702",
+          "name": "timestamp",
+          "indexId": "2:6369734045646154977",
+          "type": 6,
+          "flags": 8
+        },
+        {
+          "id": "4:7106305473990778213",
+          "name": "sessionId",
+          "indexId": "3:4536128962918095551",
+          "type": 9,
+          "flags": 2048
+        },
+        {
+          "id": "5:5485211827436276531",
+          "name": "attributes",
+          "type": 13
+        }
+      ],
+      "relations": []
+    },
+    {
+      "id": "2:5535219948831630888",
+      "lastPropertyId": "7:4462768502134882548",
+      "name": "NudgeFireEntity",
+      "properties": [
+        {
+          "id": "1:3253409564339318873",
+          "name": "id",
+          "type": 6,
+          "flags": 1
+        },
+        {
+          "id": "2:9045717797062746899",
+          "name": "nudgeId",
+          "indexId": "4:1744151107530514945",
+          "type": 9,
+          "flags": 2048
+        },
+        {
+          "id": "3:2835362261423959401",
+          "name": "group",
+          "indexId": "5:332071728184593467",
+          "type": 9,
+          "flags": 2048
+        },
+        {
+          "id": "4:267255684849766158",
+          "name": "firedAt",
+          "type": 6
+        },
+        {
+          "id": "5:631531038226152519",
+          "name": "sessionId",
+          "type": 9
+        },
+        {
+          "id": "6:4040797483775400901",
+          "name": "outcome",
+          "type": 9
+        },
+        {
+          "id": "7:4462768502134882548",
+          "name": "outcomeAt",
+          "type": 6
+        }
+      ],
+      "relations": []
+    },
+    {
+      "id": "3:3953974453537036584",
+      "lastPropertyId": "8:1653173118464532664",
+      "name": "NudgeStatsEntity",
+      "properties": [
+        {
+          "id": "1:798344540865180510",
+          "name": "id",
+          "type": 6,
+          "flags": 1
+        },
+        {
+          "id": "2:7757191494899920961",
+          "name": "name",
+          "indexId": "6:3582886346976131580",
+          "type": 9,
+          "flags": 2080
+        },
+        {
+          "id": "3:1136597834168093080",
+          "name": "count",
+          "type": 6
+        },
+        {
+          "id": "4:7093838507901653120",
+          "name": "firstAt",
+          "type": 6
+        },
+        {
+          "id": "5:785612511746959813",
+          "name": "lastAt",
+          "type": 6
+        },
+        {
+          "id": "6:8837676568822984983",
+          "name": "activeDays",
+          "type": 6
+        },
+        {
+          "id": "7:3660337687057203048",
+          "name": "lastDayKey",
+          "type": 6
+        },
+        {
+          "id": "8:1653173118464532664",
+          "name": "streak",
+          "type": 6
+        }
+      ],
+      "relations": []
+    }
+  ],
+  "lastEntityId": "3:3953974453537036584",
+  "lastIndexId": "6:3582886346976131580",
+  "lastRelationId": "0:0",
+  "lastSequenceId": "0:0",
+  "modelVersion": 5,
+  "modelVersionParserMinimum": 5,
+  "retiredEntityUids": [],
+  "retiredIndexUids": [],
+  "retiredPropertyUids": [],
+  "retiredRelationUids": [],
+  "version": 1
+}

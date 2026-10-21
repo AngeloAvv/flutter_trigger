@@ -1,0 +1,60 @@
+---
+title: "Abandoned cart"
+description: "Remind users about the cart they did not check out."
+---
+
+## Goal
+
+Recover users who added items to the cart but did not buy.
+
+## The rule
+
+- Funnel: add to cart → purchase
+- Abandoned: no purchase 30 minutes after the latest add to cart — Braze's template waits 30 minutes,
+  and 1 to 3 hours is common
+- Exit as soon as the purchase happens
+- At most one reminder a day
+
+## Code
+
+```dart
+void registerAbandonedCart(Nudge nudge) {
+  nudge
+      .define('cart_reminder')
+      .when(
+        nudge
+            .when()
+            .funnel(['add_to_cart', 'purchase'])
+            .dropOff(after: const Duration(minutes: 30)),
+      )
+      .cooldown(const Duration(days: 1))
+      .register();
+}
+```
+
+In the app, show a cart banner when the user is back on the catalog:
+
+```dart
+NudgeFireListener(
+  nudge: nudge.nudges['cart_reminder']!,
+  onFire: (context, fire) => showCartBanner(context, fire),
+  child: const CatalogPage(),
+)
+```
+
+## When the app is closed
+
+The engine only runs while the app runs. To reach users who left, schedule a local notification on
+`add_to_cart` and cancel it on `purchase`; use the nudge for what happens once they are back.
+
+## Pitfalls
+
+- Cart abandonment is mostly normal browsing — Baymard's documented average rate is about 70%.
+  Keep reminders rare.
+- The user may have bought on the web or another device. When a server knows the truth, check it
+  before reminding.
+
+## Sources
+
+- [Braze — Abandoned cart template](https://www.braze.com/docs/user_guide/messaging/templates/canvas_templates/braze_templates/abandoned_cart/)
+- [Baymard Institute — Cart abandonment rate](https://baymard.com/lists/cart-abandonment-rate)

@@ -2,6 +2,10 @@ name: Run Flutter Tests
 
 on:
   workflow_call:
+    inputs:
+      working-directory:
+        required: true
+        type: string
 
 jobs:
   test:
@@ -11,5 +15,16 @@ jobs:
         uses: actions/checkout@v7
       - name: Setup Flutter
         uses: ./.github/actions/setup
-      - name: Run Tests
+      # The storage tests run against the real ObjectBox engine: install the
+      # native library matching the resolved objectbox package version.
+      - name: Install ObjectBox native library
+        if: ${{ inputs.working-directory == '.' }}
+        run: |
+          version=$(sed -n '/^  objectbox:$/,/version:/p' pubspec.lock | grep version | sed 's/.*"\(.*\)"/\1/')
+          curl -fsSL "https://raw.githubusercontent.com/objectbox/objectbox-dart/v${version}/install.sh" -o "$RUNNER_TEMP/install-objectbox.sh"
+          mkdir -p "$RUNNER_TEMP/objectbox"
+          (cd "$RUNNER_TEMP/objectbox" && bash "$RUNNER_TEMP/install-objectbox.sh" --quiet)
+          echo "LD_LIBRARY_PATH=$RUNNER_TEMP/objectbox/lib" >> "$GITHUB_ENV"
+      - name: Run tests
         run: flutter test
+        working-directory: ${{ inputs.working-directory }}

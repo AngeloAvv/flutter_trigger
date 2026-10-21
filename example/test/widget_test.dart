@@ -1,30 +1,51 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
+import 'package:example/main.dart';
+import 'package:example/nudges.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-
-import 'package:example/main.dart';
+import 'package:nudge/nudge.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+  setUp(() async {
+    final nudge = await Nudge.initialize(
+      storage: InMemoryNudgeStorage(),
+      reevaluationInterval: Duration.zero,
+    );
+    registerNudges(nudge);
+  });
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+  tearDown(() => Nudge.instance.dispose());
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
+  testWidgets('asks for a rating after the third order, once per session', (
+    tester,
+  ) async {
+    await tester.pumpWidget(const ExampleApp());
+
+    for (var order = 1; order <= 2; order++) {
+      await tester.tap(find.byKey(const Key('complete_order')));
+      await tester.pumpAndSettle();
+      expect(find.byType(RatingDialog), findsNothing);
+    }
+
+    await tester.tap(find.byKey(const Key('complete_order')));
+    await tester.pumpAndSettle();
+    expect(find.byType(RatingDialog), findsOneWidget);
+
+    await tester.tap(find.text('Not now'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('complete_order')));
+    await tester.pumpAndSettle();
+    expect(find.byType(RatingDialog), findsNothing);
+  });
+
+  testWidgets('shows the big spender banner past 100', (tester) async {
+    await tester.pumpWidget(const ExampleApp());
+    expect(find.text('Thanks for being a great customer!'), findsNothing);
+
+    for (var order = 0; order < 3; order++) {
+      Nudge.instance.logEvent(Events.orderCompleted, {'total': 42.5});
+    }
     await tester.pump();
 
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+    expect(find.text('Thanks for being a great customer!'), findsOneWidget);
   });
 }

@@ -1,25 +1,47 @@
-name: flutter_trigger
-description: "A local-first analytics and event-triggering package."
+name: nudge
+description: >-
+  A local-first nudge engine for Flutter. Log behavioural events on device,
+  describe conditions with a fluent DSL and fire rate prompts, upsells and
+  tips at the right moment, with cooldowns, caps, outcomes and chaining.
 version: 0.1.0
-homepage:
+repository: https://github.com/AngeloAvv/nudge
+homepage: https://docs.page/AngeloAvv/nudge
+issue_tracker: https://github.com/AngeloAvv/nudge/issues
+topics:
+  - engagement
+  - analytics
+  - nudge
+  - triggers
+  - rating
 
 environment:
-  sdk: ^3.0.0
-  flutter: ">=1.17.0"
+  sdk: ^3.8.0
+  flutter: ">=3.32.0"
+
+platforms:
+  android:
+  ios:
+  linux:
+  macos:
+  windows:
 
 dependencies:
+  clock: ^1.1.2
+  # Imported by the ObjectBox generated bindings.
+  flat_buffers: ^25.9.23
   flutter:
     sdk: flutter
   objectbox: ^5.3.2
-  objectbox_flutter_libs: any
+  objectbox_flutter_libs: ^5.3.2
   path_provider: ^2.1.5
-  rxdart: ^0.28.0
   uuid: ^4.6.0
 
 dev_dependencies:
+  build_runner: ^2.4.14
+  flutter_lints: ^6.0.0
   flutter_test:
     sdk: flutter
-  flutter_lints: ^6.0.0
-  build_runner: ^2.4.14
-  objectbox_generator: any
+  objectbox_generator: ^5.3.2
 
+objectbox:
+  output_dir: src/storage/objectbox

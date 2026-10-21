@@ -1,0 +1,72 @@
+---
+title: "Feature discovery"
+description: "Surface an unused feature to users who would benefit, in the right context."
+---
+
+## Goal
+
+Point users to a feature they would benefit from but never used — when they are in the context
+where it helps.
+
+## The rule
+
+- Activated users only (here: at least ten searches)
+- The feature was never used
+- The user is on the relevant screen for the second time in this session — Appcues suggests
+  waiting for a couple of page views in the current session
+- One tooltip at a time, never again once the user tried it
+
+## Code
+
+```dart
+void registerFeatureDiscovery(Nudge nudge) {
+  nudge
+      .define('tip_saved_filters')
+      .when(
+        NudgeCondition.all([
+          // Activated users only
+          nudge.when().event('search').count().greaterThanOrEqual(10),
+          // Who never used the feature
+          nudge.when().event('saved_filter_used').exists().not(),
+          // And are in the right context right now
+          nudge
+              .when()
+              .event('screen_view')
+              .where('screen')
+              .equalTo('search')
+              .session()
+              .current()
+              .count()
+              .greaterThanOrEqual(2),
+        ]),
+      )
+      .group('tips')
+      .groupOncePerSession()
+      .maxFires(3)
+      .onOutcome(NudgeOutcome.accepted, disable: true)
+      .register();
+}
+```
+
+```dart
+NudgeFireListener(
+  nudge: nudge.nudges['tip_saved_filters']!,
+  onFire: (context, fire) async {
+    final tried = await showFeatureTooltip(context, anchor: savedFiltersKey);
+    fire.complete(tried ? NudgeOutcome.accepted : NudgeOutcome.dismissed);
+  },
+  child: const SearchPage(),
+)
+```
+
+## Pitfalls
+
+- Tooltips use their own group (`tips`), so they don't consume the budget of modal prompts.
+- Keep to one to three tips per feature area; Appcues recommends a single, targeted tooltip over
+  modal tours.
+- Measure adoption of the feature over the following weeks, not clicks on the tooltip.
+
+## Sources
+
+- [Appcues — Best practices for building flows](https://docs.appcues.com/best-practices-for-building-flows-with-appcues)
+- [Appcues — Setting up flow frequency](https://docs.appcues.com/setting-up-flow-frequency)

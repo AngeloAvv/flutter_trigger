@@ -1,0 +1,83 @@
+---
+title: "NPS and referral"
+description: "Survey satisfaction, then route promoters to a referral ask in a later session."
+---
+
+## Goal
+
+Measure satisfaction with an NPS survey and act on the answer: ask promoters to refer a friend,
+offer detractors a direct feedback channel. This recipe shows nudge **chaining**.
+
+## The rule
+
+- Survey established users: at least 30 days since install and 10 active days — Appcues suggests
+  excluding accounts younger than 30 days
+- Survey again every 90 days; "ask me later" postpones by a week
+- Promoters (9–10) get a referral ask, **in a later session**, within 30 days
+
+## Code
+
+```dart
+void registerNpsAndReferral(Nudge nudge) {
+  nudge
+      .define('nps_survey')
+      .when(
+        nudge
+            .when()
+            .app()
+            .firstSeen()
+            .olderThan(const Duration(days: 30))
+            .and(nudge.when().app().activeDays().greaterThanOrEqual(10)),
+      )
+      .group('interruptive')
+      .groupOncePerSession()
+      .cooldown(const Duration(days: 90))
+      .onOutcome('later', cooldown: const Duration(days: 7))
+      .register();
+
+  final survey = nudge.when().fired('nps_survey');
+  nudge
+      .define('referral_ask')
+      .when(
+        survey
+            .outcome('promoter')
+            .inLast(const Duration(days: 30))
+            .exists()
+            // Never in the same session as the survey
+            .and(survey.inCurrentSession().exists().not()),
+      )
+      .group('interruptive')
+      .groupOncePerSession()
+      .maxFires(1)
+      .register();
+}
+```
+
+Report the segment as the outcome:
+
+```dart
+final fire = nudge.checkpoint(group: 'interruptive');
+if (fire?.nudgeId == 'nps_survey') {
+  final score = await showNpsSurvey(); // null for "ask me later"
+  fire!.complete(switch (score) {
+    null => 'later',
+    >= 9 => 'promoter',
+    >= 7 => 'passive',
+    _ => 'detractor',
+  });
+  if (score != null && score <= 6) await openFeedbackForm();
+}
+```
+
+## Why not chain into the store review?
+
+It is tempting to send promoters straight to the store rating. Google Play's in-app review
+guidelines ask apps not to ask **any** question before or while presenting the review card,
+explicitly including _"Do you like the app?"_, and Apple forbids custom review prompts. Use the
+survey to improve the product and to drive referrals; ask for ratings with the
+[rating prompt recipe](/recipes/rating-prompt), independently.
+
+## Sources
+
+- [Appcues — NPS best practices](https://docs.appcues.com/nps-best-practices)
+- [Android — Google Play In-App Review API](https://developer.android.com/guide/playcore/in-app-review)

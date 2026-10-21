@@ -1,0 +1,36 @@
+---
+title: "Recipes"
+description: "Ready-to-use nudges for the most common engagement scenarios."
+---
+
+Each recipe describes a scenario, the rule teams typically use, the code, and the pitfalls. The code
+of every recipe is covered by the package's test suite (`test/recipes_test.dart`).
+
+| Recipe | Goal |
+| ------ | ---- |
+| [Rating prompt](/recipes/rating-prompt) | Ask engaged, happy users for a store rating, within platform rules |
+| [Frequency capping](/recipes/frequency-capping) | Keep prompts from piling up on each other |
+| [Paywall after usage](/recipes/paywall) | Show the upgrade offer when the user shows intent |
+| [Onboarding nudge](/recipes/onboarding) | Help users who started onboarding but did not finish |
+| [Abandoned cart](/recipes/abandoned-cart) | Recover carts that were not checked out |
+| [Feature discovery](/recipes/feature-discovery) | Surface an unused feature at the right moment |
+| [Streaks and habits](/recipes/streaks) | Celebrate streaks and warn when one is at risk |
+| [Win-back](/recipes/win-back) | Welcome back users who were away |
+| [Push permission](/recipes/push-permission) | Ask for notifications in context, without burning the system prompt |
+| [NPS and referral](/recipes/nps-and-referral) | Survey satisfaction, then ask promoters to share |
+| [Activation milestone](/recipes/activation) | Celebrate the "aha moment" and gate later prompts on it |
+| [Guest to account](/recipes/guest-to-account) | Suggest signing up once there is something worth saving |
+
+<Info>
+  The thresholds below are starting points, not laws. Industry numbers such as Slack's "2,000
+  messages" are correlations found in one product's data: measure your own retention and tune the
+  thresholds — changing a nudge id gives it a fresh history.
+</Info>
+
+## Conventions used in the recipes
+
+- Event names are plain strings for brevity; in an app, keep them in constants.
+- Modal prompts share the `interruptive` group with `groupOncePerSession()`, and are shown with
+  `checkpoint(group: 'interruptive')` at natural pauses. See
+  [Frequency capping](/recipes/frequency-capping).
+- `nudge` is the `Nudge` instance.
