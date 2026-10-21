@@ -1,0 +1,67 @@
+---
+title: "Streaks and habits"
+description: "Celebrate streak milestones and warn when a streak is at risk, Duolingo-style."
+---
+
+## Goal
+
+Build a daily habit: celebrate streak milestones and warn the user when today's practice is missing.
+
+## The rule
+
+- Streak: consecutive local days with at least one completed lesson
+- Milestones at 3, 7 and 30 days, each celebrated once
+- At risk: a streak of two days or more, and no lesson yet today
+
+Duolingo reports that learners who reach a 7-day streak are 3.6 times more likely to complete their
+course, and that the first days of a streak are the most fragile.
+
+## Code
+
+```dart
+void registerStreaks(Nudge nudge) {
+  final lessons = nudge.when().event('lesson_completed');
+
+  for (final days in [3, 7, 30]) {
+    nudge
+        .define('streak_milestone_$days')
+        .when(lessons.streak().greaterThanOrEqual(days))
+        .maxFires(1)
+        .register();
+  }
+
+  nudge
+      .define('streak_at_risk')
+      .when(
+        lessons
+            .streak()
+            .greaterThanOrEqual(2)
+            .and(lessons.today().exists().not()),
+      )
+      .oncePerSession()
+      .cooldown(const Duration(hours: 12))
+      .register();
+}
+```
+
+Show the streak itself with a `NudgeBuilder`, or read it in an explanation:
+
+```dart
+NudgeBuilder(
+  condition: nudge.when().event('lesson_completed').streak().greaterThanOrEqual(1),
+  builder: (context, onStreak) => StreakFlame(lit: onStreak),
+)
+```
+
+## Pitfalls
+
+- A streak survives until a full local day passes without the event, so "at risk" is a matter of
+  hours: show it when the user opens the app in the evening, and schedule a local notification for
+  users who don't.
+- Days follow the device's local midnight: travelling across time zones can shorten or lengthen a
+  day. Duolingo offers streak freezes for exactly this kind of friction.
+
+## Sources
+
+- [Duolingo — How the streak builds habit](https://blog.duolingo.com/how-duolingo-streak-builds-habit/)
+- [Duolingo — Recurring notifications (KDD 2020)](https://research.duolingo.com/papers/yancey.kdd20.pdf)

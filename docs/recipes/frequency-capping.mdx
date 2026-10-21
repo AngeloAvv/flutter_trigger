@@ -1,0 +1,78 @@
+---
+title: "Frequency capping"
+description: "Keep rating prompts, paywalls and surveys from piling up on each other."
+---
+
+## Goal
+
+Every recipe works in isolation. Together, without coordination, they produce a rating prompt, a
+paywall and a survey in the same session. Frequency capping makes them share a budget.
+
+## The rule
+
+- Modal prompts belong to one group
+- At most one modal prompt per session, and none for a day after the previous one
+- When several are eligible, the most important wins
+- Prompts appear only at checkpoints, never back to back
+
+## Code
+
+```dart
+const interruptive = 'interruptive';
+
+nudge
+    .define('push_pre_prompt')
+    .when(pushCondition)
+    .group(interruptive)
+    .priority(30)
+    .groupOncePerSession()
+    .groupCooldown(const Duration(days: 1))
+    .register();
+
+nudge
+    .define('export_paywall')
+    .when(paywallCondition)
+    .group(interruptive)
+    .priority(20)
+    .groupOncePerSession()
+    .groupCooldown(const Duration(days: 1))
+    .register();
+
+nudge
+    .define('rating_prompt_v1')
+    .when(ratingCondition)
+    .group(interruptive)
+    .priority(10)
+    .groupOncePerSession()
+    .groupCooldown(const Duration(days: 1))
+    .register();
+```
+
+```dart
+// At natural pauses only
+final fire = nudge.checkpoint(group: interruptive);
+switch (fire?.nudgeId) {
+  case 'push_pre_prompt':
+    await showPushPrePrompt(fire!);
+  case 'export_paywall':
+    await showPaywall(fire!);
+  case 'rating_prompt_v1':
+    await requestReview(fire!);
+}
+```
+
+`checkpoint` returns at most one nudge, the eligible one with the highest priority; once it fires,
+`groupOncePerSession` makes every other member ineligible until the next session.
+
+## Pitfalls
+
+- Non-modal UI (tooltips, banners) should live in a separate group with its own budget, so a
+  harmless tip does not consume the slot of an important prompt.
+- Repeating the same message wears it out: Duolingo found that fresh notification templates
+  outperform repeated ones. Rotate copy and keep cooldowns generous.
+
+## Sources
+
+- [Appcues — Experiences frequency limit](https://docs.appcues.com/experiences-frequency-limit)
+- [Firebase — In-App Messaging campaigns](https://firebase.google.com/docs/in-app-messaging/compose-campaign)
+- [Duolingo — A sleeping, recovering bandit algorithm for optimizing recurring notifications (KDD 2020)](https://research.duolingo.com/papers/yancey.kdd20.pdf)

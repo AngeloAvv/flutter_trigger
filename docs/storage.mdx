@@ -1,0 +1,58 @@
+---
+title: "Storage and retention"
+description: "Where data lives, how long it is kept and how to plug in another storage."
+---
+
+## ObjectBox
+
+By default events are stored in an ObjectBox database dedicated to the package, in a
+`nudge` folder inside the application support directory — not in the user's documents,
+so it is neither shown in the Files app nor backed up as a user document.
+
+ObjectBox writes are fast and synchronous, which lets `logEvent` and evaluations run inline. Its
+native library is added by `objectbox_flutter_libs`; web is not supported. After a hot restart the
+native store outlives the Dart isolate: the package attaches to it instead of failing to reopen it.
+
+The package's ObjectBox model is private to the package: it does not interfere with an ObjectBox
+store your app may already use.
+
+## Retention
+
+```dart
+await Nudge.initialize(
+  ttl: const Duration(days: 90),   // delete events older than 90 days
+  maxCapacity: 5000,               // keep at most the latest 5,000 events
+);
+```
+
+The retention policy runs two seconds after initialization, every 500 logged events, and whenever
+you call `nudge.runMaintenance()`.
+
+| Data                 | Affected by retention |
+| -------------------- | --------------------- |
+| Event log            | yes                   |
+| Lifetime stats per event name (count, first/last occurrence, active days, streak) | no |
+| Nudge fire history and outcomes | no       |
+
+Conditions that cover every occurrence of an event (no session, time or attribute filter) are
+answered from the lifetime stats. Filtered conditions read the log: keep `ttl` longer than the
+longest window your conditions use.
+
+## Erasing data
+
+`nudge.clear()` deletes every event, stat and fire record and starts a new session. Call it on
+logout if nudges are per user, and when a user asks to erase their data.
+
+## Custom storage
+
+`NudgeStorage` is a small synchronous interface — insert and query events, stats and fire records.
+The engine performs all evaluation logic, so a storage only stores and filters. Two
+implementations ship with the package: the ObjectBox one (default) and `InMemoryNudgeStorage`,
+meant for tests.
+
+```dart
+await Nudge.initialize(storage: MyNudgeStorage());
+```
+
+A custom implementation must keep `EventStats` up to date in `insertEvent`; `EventStats.first` and
+`EventStats.record` implement the update.

@@ -1,0 +1,76 @@
+---
+title: "Paywall after usage"
+description: "Show the upgrade offer when the user shows intent, not at random."
+---
+
+## Goal
+
+Show the paywall when the user repeatedly reaches for a premium capability, instead of at a random
+moment or only once at onboarding.
+
+## The rule
+
+- The premium action was attempted at least three times in the last week — the same shape as
+  Superwall's audience example (_"at least 3 times in the last week"_)
+- Not more than once an hour and twice a day
+- Never again after the user subscribed
+
+## Code
+
+```dart
+void registerPaywall(Nudge nudge) {
+  nudge
+      .define('export_paywall')
+      .when(
+        nudge
+            .when()
+            .event('export_attempted')
+            .where('premium')
+            .equalTo(true)
+            .inLast(const Duration(days: 7))
+            .count()
+            .greaterThanOrEqual(3),
+      )
+      .group('interruptive')
+      .groupOncePerSession()
+      .cooldown(const Duration(hours: 1))
+      .maxFires(2, per: const Duration(days: 1))
+      .onOutcome(NudgeOutcome.accepted, disable: true)
+      .register();
+}
+```
+
+```dart
+Future<void> onExportTapped(ExportFormat format) async {
+  nudge.logEvent('export_attempted', {'premium': format.isPremium});
+
+  if (!format.isPremium || await purchases.isPro()) return export(format);
+
+  final fire = nudge.fire('export_paywall');
+  if (fire == null) return showLockedHint();
+
+  final purchased = await showPaywall();
+  fire.complete(purchased ? NudgeOutcome.accepted : NudgeOutcome.dismissed);
+}
+```
+
+## Variant: quota exhausted
+
+```dart
+nudge.when().event('ai_generation').inLast(const Duration(days: 1)).count().greaterThanOrEqual(5)
+```
+
+## Pitfalls
+
+- **Entitlements come from the store**, not from local events. Check the subscription status with
+  your purchases SDK before showing the paywall; the `onOutcome` policy only avoids asking again on
+  this device.
+- Decide whether the feature still runs after a dismissal ("gated" or "non-gated" paywall).
+- Exposure matters: RevenueCat reports that trial opt-ins correlate with how many times a user sees
+  a paywall — which is a reason to show it in context, with caps, not a reason to spam it.
+
+## Sources
+
+- [Superwall — Campaign audiences](https://superwall.com/docs/dashboard/dashboard-campaigns/campaigns-audience)
+- [Superwall — Feature gating](https://superwall.com/docs/feature-gating)
+- [RevenueCat — State of Subscription Apps 2025](https://www.revenuecat.com/state-of-subscription-apps-2025/)

@@ -1,0 +1,87 @@
+---
+title: "Rating prompt"
+description: "Ask engaged, happy users for a store rating, within Apple's and Google's rules."
+---
+
+## Goal
+
+Collect store ratings from users who have experienced the app and just succeeded at something,
+without wasting the operating system's quota or annoying anyone.
+
+## The rule
+
+- At least a week since install and five sessions — the classic Appirater defaults
+- The core task completed a few times — Apple's sample asks after the user completes its main
+  process four times
+- Never in a session where something went wrong
+- Shown at the end of a successful task, never at launch or in the middle of a flow
+- At least two weeks between requests, at most three per year
+
+## Code
+
+```dart
+void registerRatingPrompt(Nudge nudge) {
+  nudge
+      .define('rating_prompt_v1')
+      .when(
+        NudgeCondition.all([
+          // Experienced the app: a week since install, five sessions…
+          nudge.when().app().firstSeen().olderThan(const Duration(days: 7)),
+          nudge.when().app().sessions().greaterThanOrEqual(5),
+          // …and succeeded at its core task a few times
+          nudge.when().event('order_completed').count().greaterThanOrEqual(3),
+          // Never right after something went wrong
+          nudge.when().event('error').session().current().exists().not(),
+        ]),
+      )
+      .group('interruptive')
+      .groupOncePerSession()
+      .cooldown(const Duration(days: 14))
+      .maxFires(3, per: const Duration(days: 365))
+      .register();
+}
+```
+
+Ask at the end of the successful task, after the confirmation is on screen:
+
+```dart
+Future<void> onOrderConfirmed() async {
+  final fire = nudge.checkpoint(group: 'interruptive');
+  if (fire?.nudgeId != 'rating_prompt_v1') return;
+
+  // package:in_app_review
+  if (await InAppReview.instance.isAvailable()) {
+    await InAppReview.instance.requestReview();
+  }
+  fire!.complete(NudgeOutcome.unknown);
+}
+```
+
+## Platform rules to respect
+
+- **Apple** shows the system prompt at most three times in 365 days, and may not show it at all:
+  the API does not report whether it appeared. Don't call it from a button; for a manual "Rate us"
+  entry point, link to the App Store page with `action=write-review`. Custom review prompts are not
+  allowed (App Review Guideline 5.6.1).
+- **Apple's Human Interface Guidelines** advise against asking on first launch or during onboarding,
+  against interrupting a task, and suggest allowing at least a week or two between requests.
+- **Google Play** applies an undocumented, time-bound quota and does not report the outcome either.
+  It asks you not to put the API behind a call-to-action button and **not to ask any question before
+  or while presenting the rating card** — including _"Do you like the app?"_. Do not chain a
+  satisfaction question directly into the review card; see [NPS and referral](/recipes/nps-and-referral)
+  for a compliant way to use satisfaction data.
+- Both stores forbid incentivized ratings.
+
+<Warning>
+  Because neither platform reports what happened, the fire record is your only memory: complete
+  fires with `NudgeOutcome.unknown` and let the cooldown and the cap do the work. In TestFlight the
+  iOS prompt never appears; in debug builds it always does.
+</Warning>
+
+## Sources
+
+- [Apple — Requesting App Store reviews](https://developer.apple.com/documentation/storekit/requesting-app-store-reviews)
+- [Apple — Human Interface Guidelines: Ratings and reviews](https://developer.apple.com/design/human-interface-guidelines/ratings-and-reviews)
+- [Apple — App Review Guidelines](https://developer.apple.com/app-store/review/guidelines/)
+- [Android — Google Play In-App Review API](https://developer.android.com/guide/playcore/in-app-review)
+- [Appirater](https://github.com/arashpayan/appirater)

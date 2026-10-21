@@ -1,0 +1,80 @@
+---
+title: "Widgets"
+description: "NudgeBuilder, NudgeListener and NudgeFireListener."
+---
+
+Conditions are compared by value, so every widget below can receive a condition built inline in
+`build`: a parent rebuild does not resubscribe and does not replay the current value.
+
+## NudgeBuilder
+
+Rebuilds when a condition changes. The first frame already shows the current value — conditions
+are evaluated synchronously, so there is no flash of the `false` state.
+
+```dart
+NudgeBuilder(
+  condition: nudge
+      .when()
+      .event('order_completed')
+      .attribute('total')
+      .sum()
+      .greaterThanOrEqual(100),
+  builder: (context, isBigSpender) =>
+      isBigSpender ? const LoyaltyBanner() : const SizedBox.shrink(),
+)
+```
+
+Use it for state-like UI: banners, badges, unlocked sections.
+
+## NudgeListener
+
+Calls `onChanged` with the value of a condition, without rebuilding its child. The value at
+subscription time is delivered too, unless `skipInitialValue` is set.
+
+```dart
+NudgeListener(
+  condition: nudge.when().event('level_completed').count().greaterThanOrEqual(10),
+  skipInitialValue: true,
+  onChanged: (context, reached) {
+    if (reached) ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('10 levels!')),
+    );
+  },
+  child: const GamePage(),
+)
+```
+
+<Warning>
+  A plain condition has no memory: if it is true at every launch, `onChanged` receives `true` at
+  every launch. For anything that must not repeat — dialogs, celebrations, tips — use a nudge
+  with `NudgeFireListener` instead.
+</Warning>
+
+## NudgeFireListener
+
+Fires a registered nudge as soon as it becomes eligible while the widget is mounted, records the
+fire, and calls `onFire`. Policies apply across rebuilds, remounts and launches.
+
+```dart
+final celebration = nudge
+    .define('first_project_celebration')
+    .when(nudge.when().event('project_created').exists())
+    .maxFires(1)
+    .register();
+
+NudgeFireListener(
+  nudge: celebration,
+  onFire: (context, fire) async {
+    await showDialog<void>(
+      context: context,
+      builder: (_) => const CelebrationDialog(),
+    );
+    fire.complete(NudgeOutcome.dismissed);
+  },
+  child: const ProjectsPage(),
+)
+```
+
+Place it around the page where the reaction makes sense: the nudge only fires while that page is
+mounted. For interruptive prompts that must appear at a specific moment, prefer
+[`checkpoint`](/nudges#at-a-checkpoint-recommended-for-prompts).

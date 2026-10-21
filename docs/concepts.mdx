@@ -1,0 +1,77 @@
+---
+title: "Core concepts"
+description: "Events, conditions, nudges and fires: how the engine thinks."
+---
+
+`nudge` separates three things that hand-written engagement logic usually mixes up.
+
+## Events: what happened
+
+An **event** is a fact: a name, a timestamp, the session it happened in and optional metadata.
+Events are appended to a local log, which is rotated by age and size, while lifetime counters per
+event name are kept forever. See [Events and sessions](/events).
+
+## Conditions: what is true now
+
+A **condition** is a question about the history, built with a fluent DSL:
+
+```dart
+nudge.when().event('export_attempted').inLast(const Duration(days: 7)).count().greaterThanOrEqual(3)
+```
+
+Conditions are **immutable descriptions**. Building one never touches the database; two conditions
+built the same way are equal (`==`), so they can be declared once, reused and built inline in a
+widget's `build` method without side effects. They are evaluated when you call:
+
+| Method      | Returns                                                              |
+| ----------- | -------------------------------------------------------------------- |
+| `evaluate()` | the value now, synchronously                                         |
+| `explain()`  | the value with the reasoning behind it                               |
+| `watch()`    | a stream of values, emitted on listen and on every change            |
+
+A condition has **no memory**: if it is true at every launch, it is true at every launch. That is
+what nudges are for. See [Conditions](/conditions) and [Funnels](/funnels).
+
+## Nudges: what may happen now
+
+A **nudge** gives a condition an identity and a memory:
+
+```dart
+nudge
+    .define('export_paywall')
+    .when(condition)
+    .cooldown(const Duration(hours: 1))
+    .maxFires(2, per: const Duration(days: 1))
+    .onOutcome(NudgeOutcome.accepted, disable: true)
+    .register();
+```
+
+Every time a nudge fires, a **fire record** is stored with the time, the session and later the
+**outcome** you report (`accepted`, `dismissed`, …). Policies are conditions over these records:
+a cooldown is just _"no fire of this nudge in the last N days"_. That is why the fire history can
+also be queried by other nudges, which is how chaining works. See [Nudges](/nudges).
+
+## Pull, not just push
+
+Interruptive prompts should appear at natural pauses — after a task is completed, back on the home
+screen — never in the middle of a flow. So besides reacting to streams, the engine lets you
+**pull**: call `checkpoint()` where an interruption is acceptable and it returns the most important
+eligible nudge, if any.
+
+```dart
+final fire = nudge.checkpoint(group: 'interruptive');
+```
+
+Non-interruptive UI (a banner, a badge, a tooltip on the current page) is a good fit for the
+reactive widgets instead. See [Widgets](/widgets).
+
+## Time
+
+Conditions can be relative to the moment they are evaluated: `inLast(...)`, `today()`,
+`olderThan(...)`, `dropOff(after: ...)`. Watched conditions are re-evaluated after events, after
+fires, when the app returns to the foreground and periodically while there are listeners, so a
+condition can become true just because time passed.
+
+The engine only runs while the app runs. To reach users who have closed the app, schedule a local
+notification when the relevant event happens and cancel it when the condition no longer applies;
+use the engine for what happens once they are back.

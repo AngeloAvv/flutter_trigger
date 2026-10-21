@@ -1,0 +1,69 @@
+---
+title: "nudge"
+description: "A local-first nudge engine for Flutter: log behaviour on device, fire rate prompts, upsells and tips at the right moment."
+---
+
+Most apps end up with the same hand-written logic, project after project: _"ask for a review after the
+third successful order, but not right after an error, and not more than three times a year"_, _"show
+the paywall when the user tries to export for the third time this week"_, _"remind them about the
+cart they abandoned"_.
+
+`nudge` turns that logic into declarations. You log what the user does, describe **when**
+something should happen with a fluent DSL, and the engine decides, on device, whether it may happen
+**now** — remembering what already fired, with which outcome, and when it may fire again.
+
+```dart
+final nudge = await Nudge.initialize();
+
+// 1. Log behaviour
+nudge.logEvent('order_completed', {'total': 42.5});
+
+// 2. Declare a nudge and its policies
+nudge
+    .define('rating_prompt')
+    .when(nudge.when().event('order_completed').count().greaterThanOrEqual(3))
+    .cooldown(const Duration(days: 14))
+    .maxFires(3, per: const Duration(days: 365))
+    .register();
+
+// 3. At a natural pause, ask the engine
+final fire = nudge.checkpoint();
+if (fire != null) {
+  await InAppReview.instance.requestReview();
+  fire.complete(NudgeOutcome.unknown);
+}
+```
+
+## Features
+
+- **Local-first** — events are stored on device in an ObjectBox database; nothing leaves the
+  device, and evaluation is synchronous and immediate
+- **Fluent conditions** — counts, attribute filters and aggregates, distinct sessions, active days,
+  streaks, recency and inactivity, install age, loose funnels with time windows and drop-off
+- **Nudges with memory** — cooldowns, lifetime and rolling caps, once per session, group caps and
+  priorities, outcome-based policies, all persisted across launches
+- **Chaining** — a nudge can depend on another nudge's history and outcome
+- **Reactive or on demand** — watch conditions as streams, or call `checkpoint()` where a prompt
+  is welcome
+- **Explainable** — `explain()` tells you exactly which part of a condition or policy is blocking
+- **Lifetime stats** — counts, first/last occurrence, active days and streaks survive log rotation
+- **Testable** — an in-memory storage and an injectable clock let you test nudges like any
+  other logic
+
+## Installation
+
+```yaml title="pubspec.yaml"
+dependencies:
+  nudge: ^0.1.0
+```
+
+<Info>
+  The package uses ObjectBox through `objectbox_flutter_libs` and supports Android, iOS, macOS,
+  Linux and Windows. Web is not supported.
+</Info>
+
+## Where to go next
+
+- [Getting started](/getting-started) walks from installation to the first prompt
+- [Core concepts](/concepts) explains events, conditions and nudges
+- [Recipes](/recipes) collects ready-to-use nudges for the most common engagement scenarios

@@ -1,0 +1,61 @@
+---
+title: "Activation milestone"
+description: "Celebrate the aha moment, and use it to gate later prompts."
+---
+
+## Goal
+
+Define the moment a user "gets" the product — the activation milestone — celebrate it, and use it as
+a prerequisite for prompts that only make sense afterwards (ratings, referrals, upsells).
+
+## The rule
+
+Pick a count and a spread over time from your own retention data. Here: ten completed tasks over at
+least three different days.
+
+Famous examples are correlations found in one product's data, and some are less documented than
+their fame suggests:
+
+- **Slack**: teams that exchanged 2,000 messages had "really tried" Slack, and 93% of them were still
+  using it — Stewart Butterfield on First Round Review.
+- **Twitter**: users who followed about 30 accounts became long-term users, per Josh Elman's analysis
+  reported in _Hacking Growth_ — with the authors' own caveat that correlation is not causation.
+- **Facebook's "7 friends in 10 days"** is widely quoted, but no primary source states it precisely;
+  Andrew Chen notes the exact numbers matter less than having a simple goal.
+
+## Code
+
+```dart
+void registerActivation(Nudge nudge) {
+  nudge
+      .define('activation_celebration')
+      .when(
+        nudge
+            .when()
+            .event('task_completed')
+            .count()
+            .greaterThanOrEqual(10)
+            .and(nudge.when().app().activeDays().greaterThanOrEqual(3)),
+      )
+      .maxFires(1)
+      .register();
+}
+```
+
+Gate other nudges on the milestone by reusing the condition, or on the celebration having fired:
+
+```dart
+final activated = nudge.when().fired('activation_celebration').exists();
+
+nudge
+    .define('referral_prompt')
+    .when(activated.and(referralCondition))
+    .register();
+```
+
+## Sources
+
+- [First Round Review — Slack's founder on the launch strategy](https://review.firstround.com/from-0-to-1b-slacks-founder-shares-their-epic-launch-strategy/)
+- [Mattermark — How Josh Elman identified a growth driver at Twitter](https://mattermark.com/putting-it-all-together-how-josh-elman-identified-a-growth-driver-at-twitter/)
+- [Andrew Chen — Finding insights like Facebook's 7 friends in 10 days](https://andrewchen.com/my-quora-answer-to-how-do-you-find-insights-like-facebooks-7-friends-in-10-days-to-grow-your-product-faster/)
+- [Amplitude — Finding your aha moment](https://amplitude.com/blog/aha-moment)

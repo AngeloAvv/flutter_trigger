@@ -1,0 +1,145 @@
+---
+title: "Nudges"
+description: "Definitions, policies, outcomes, checkpoints, priorities and chaining."
+---
+
+## Defining a nudge
+
+```dart
+final ratingPrompt = nudge
+    .define('rating_prompt_v1')
+    .when(nudge.when().event('order_completed').count().greaterThanOrEqual(3))
+    .group('interruptive')
+    .priority(10)
+    .cooldown(const Duration(days: 14))
+    .maxFires(3, per: const Duration(days: 365))
+    .onOutcome(NudgeOutcome.accepted, disable: true)
+    .register();
+```
+
+`register()` builds the definition and registers it, replacing any nudge with the same id. Register
+your nudges once at startup, after `initialize`.
+
+<Info>
+  The fire history is stored under the nudge id. To start over with a fresh history — new
+  thresholds, a new campaign — change the id, e.g. `rating_prompt_v2`.
+</Info>
+
+## Policies
+
+Policies decide when a nudge may fire **again**. They are stored as fire records, so they hold
+across launches and are never affected by event log rotation.
+
+| Policy                                   | Not eligible when…                                        |
+| ---------------------------------------- | --------------------------------------------------------- |
+| `.cooldown(d)`                           | it fired in the last `d`                                  |
+| `.maxFires(n)`                           | it fired `n` times, ever                                  |
+| `.maxFires(n, per: d)`                   | it fired `n` times in the last `d`                        |
+| `.oncePerSession()`                      | it already fired in this session                          |
+| `.groupCooldown(d)`                      | any nudge of its group fired in the last `d`            |
+| `.groupOncePerSession()`                 | any nudge of its group already fired in this session    |
+| `.onOutcome(o, cooldown: d)`             | a fire completed with outcome `o` in the last `d`         |
+| `.onOutcome(o, disable: true)`           | a fire ever completed with outcome `o`                    |
+| `.require(label, condition)`             | `condition` is not met                                    |
+
+Group policies require `.group(...)`. Time-based policies are measured from the fire time.
+
+## Firing
+
+There are three ways to fire a nudge. All of them record the fire **before** returning it, so
+cooldowns and caps apply even if your UI never reports an outcome.
+
+### At a checkpoint (recommended for prompts)
+
+```dart
+final fire = nudge.checkpoint(group: 'interruptive');
+```
+
+`checkpoint` fires the eligible nudge with the highest `priority` (ties go to the nudge
+registered first), optionally restricted to a `group` or to a list of `ids`, and returns it — or
+`null`. Call it where an interruption is welcome: after a task is completed, back on the home
+screen. Combined with `groupOncePerSession`, it guarantees at most one prompt per session.
+
+### Directly
+
+```dart
+final fire = nudge.fire('rating_prompt_v1'); // null if not eligible
+final forced = nudge.fire('rating_prompt_v1', force: true); // QA only
+```
+
+### Reactively
+
+`NudgeFireListener` fires a nudge as soon as it becomes eligible while the widget is mounted.
+See [Widgets](/widgets#nudgefirelistener).
+
+## Outcomes
+
+Report what the user did with the fire:
+
+```dart
+final fire = nudge.checkpoint();
+if (fire != null) {
+  final accepted = await showUpgradeSheet(context);
+  fire.complete(accepted ? NudgeOutcome.accepted : NudgeOutcome.dismissed);
+}
+```
+
+`NudgeOutcome` provides `accepted`, `declined`, `dismissed` and `unknown`, but any string works:
+`'promoter'`, `'later'`, `'5_stars'`. Outcomes drive `onOutcome` policies and chained nudges.
+
+<Warning>
+  Some outcomes are not observable. The iOS and Android in-app review APIs never tell you whether
+  the dialog was shown, let alone what the user did. Report `NudgeOutcome.unknown` and rely on
+  cooldowns and caps.
+</Warning>
+
+## Chaining
+
+The fire history is part of the DSL, so a nudge can depend on another nudge's fires and
+outcomes:
+
+```dart
+final survey = nudge.when().fired('nps_survey');
+
+nudge
+    .define('referral_ask')
+    .when(
+      survey
+          .outcome('promoter')
+          .inLast(const Duration(days: 30))
+          .exists()
+          .and(survey.inCurrentSession().exists().not()),
+    )
+    .maxFires(1)
+    .register();
+```
+
+`when().group('interruptive')` selects the history of a whole group. See the
+[NPS and referral recipe](/recipes/nps-and-referral).
+
+## Inspecting and resetting
+
+```dart
+nudge.isEligible('rating_prompt_v1');       // bool
+print(nudge.explainNudge('rating_prompt_v1')); // which policy blocks
+nudge.resetNudge('rating_prompt_v1');      // forget its fire history
+nudge.nudges;                              // registered definitions
+```
+
+A `NudgeDefinition` offers the same through `isEligible`, `explain()`, `fire()`, `reset()` and
+`watchEligible()`.
+
+## Forwarding to remote analytics
+
+The engine decides locally, but you will want to measure whether a prompt works. Every fire and
+every outcome is broadcast:
+
+```dart
+nudge.fires.listen((fire) =>
+    analytics.logEvent(name: 'nudge_fired', parameters: {'id': fire.nudgeId}));
+
+nudge.outcomes.listen((fire) => analytics.logEvent(
+      name: 'nudge_outcome',
+      parameters: {'id': fire.nudgeId, 'outcome': fire.outcome!},
+    ));
+```

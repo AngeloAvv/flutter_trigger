@@ -1,0 +1,76 @@
+---
+title: "Push permission"
+description: "Ask for notification permission in context, without burning the one-shot system prompt."
+---
+
+## Goal
+
+Maximize notification opt-in. The system dialog is effectively one-shot — on iOS a denial cannot be
+asked again, on Android a second denial is permanent — so show an in-app pre-prompt first, at a
+moment where notifications obviously help.
+
+## The rule
+
+- Never in the first session — OneSignal calls prompting on first launch the biggest cause of low
+  opt-in rates
+- In context: right after the user placed an order, when order updates are valuable
+- If the pre-prompt is dismissed, ask again after two weeks, at most four times
+- Never again once the user accepted the pre-prompt
+
+## Code
+
+```dart
+void registerPushPrePrompt(Nudge nudge) {
+  nudge
+      .define('push_pre_prompt')
+      .when(
+        nudge
+            .when()
+            .app()
+            .sessions()
+            .greaterThanOrEqual(2)
+            .and(
+              nudge
+                  .when()
+                  .event('order_completed')
+                  .session()
+                  .current()
+                  .exists(),
+            ),
+      )
+      .group('interruptive')
+      .groupOncePerSession()
+      .onOutcome(NudgeOutcome.accepted, disable: true)
+      .onOutcome(NudgeOutcome.dismissed, cooldown: const Duration(days: 14))
+      .maxFires(4)
+      .register();
+}
+```
+
+```dart
+Future<void> onOrderConfirmed() async {
+  if (await notificationsAlreadyDecided()) return;
+
+  final fire = nudge.checkpoint(group: 'interruptive');
+  if (fire?.nudgeId != 'push_pre_prompt') return;
+
+  final proceed = await showOrderUpdatesPrePrompt();
+  fire!.complete(proceed ? NudgeOutcome.accepted : NudgeOutcome.dismissed);
+  if (proceed) await requestNotificationPermission();
+}
+```
+
+## Pitfalls
+
+- Check the actual permission status before showing the pre-prompt: once granted or permanently
+  denied, the nudge is pointless.
+- Apple's guidelines ask that a custom screen before the system alert has a single button that
+  clearly opens the system alert, without mimicking it.
+- On iOS, provisional authorization (quiet delivery) is an alternative that needs no prompt.
+
+## Sources
+
+- [OneSignal — Prompt for push permissions](https://documentation.onesignal.com/docs/en/prompt-for-push-permissions)
+- [Android — Notification runtime permission](https://developer.android.com/develop/ui/views/notifications/notification-permission)
+- [Android — Request runtime permissions](https://developer.android.com/training/permissions/requesting)
+- [Apple — Human Interface Guidelines: Privacy](https://developer.apple.com/design/human-interface-guidelines/privacy)

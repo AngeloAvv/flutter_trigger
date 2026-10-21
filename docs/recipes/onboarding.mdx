@@ -1,0 +1,72 @@
+---
+title: "Onboarding nudge"
+description: "Help users who started onboarding but did not finish, and celebrate those who did."
+---
+
+## Goal
+
+Detect users stuck in onboarding and bring them back to it when they return; celebrate the ones
+who complete it.
+
+## The rule
+
+- Onboarding is a funnel: started → profile completed → first project created
+- Stuck: started, and not completed one day after the latest attempt started
+- Nudge only when the user comes back (second session or later), at most twice, three days apart
+- Celebrate a completion within a week, once
+
+Analytics tools use similar windows for onboarding funnels: Mixpanel's default conversion window is
+7 days, Amplitude's is 1 day.
+
+## Code
+
+```dart
+const onboardingSteps = [
+  'onboarding_started',
+  'profile_completed',
+  'first_project_created',
+];
+
+void registerOnboarding(Nudge nudge) {
+  final onboarding = nudge.when().funnel(onboardingSteps);
+
+  nudge
+      .define('onboarding_nudge')
+      .when(
+        onboarding
+            .dropOff(after: const Duration(days: 1))
+            .and(nudge.when().app().sessions().greaterThanOrEqual(2)),
+      )
+      .cooldown(const Duration(days: 3))
+      .maxFires(2)
+      .register();
+
+  nudge
+      .define('onboarding_celebration')
+      .when(onboarding.within(const Duration(days: 7)))
+      .maxFires(1)
+      .register();
+}
+```
+
+Show the nudge on the home screen, e.g. a checklist card:
+
+```dart
+NudgeFireListener(
+  nudge: nudge.nudges['onboarding_nudge']!,
+  onFire: (context, fire) => context.read<ChecklistCubit>().show(fire),
+  child: const HomePage(),
+)
+```
+
+## Pitfalls
+
+- Always let users skip onboarding; nudge, don't trap.
+- Choose deliberately between a strict order and "any order". The funnel enforces order; if the
+  steps can be done in any order, combine `exists()` conditions with `NudgeCondition.all`.
+
+## Sources
+
+- [Mixpanel — Funnels: advanced](https://docs.mixpanel.com/docs/reports/funnels/funnels-advanced)
+- [Amplitude — Interpret your funnel analysis](https://amplitude.com/docs/analytics/charts/funnel-analysis/funnel-analysis-interpret)
+- [Appcues — Best practices for building flows](https://docs.appcues.com/best-practices-for-building-flows-with-appcues)

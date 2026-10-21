@@ -1,0 +1,48 @@
+---
+title: "Win-back"
+description: "Welcome back users who were away, and show them what changed."
+---
+
+## Goal
+
+Re-engage users returning after a long absence: a "welcome back" with what's new, a reminder of
+where they left off.
+
+## The rule
+
+- The previous session started more than 14 days before this one (common tiers are 7, 14, 30 and
+  60 days of inactivity — conventions, not standards)
+- Once per return, at most once a month
+
+## Code
+
+```dart
+void registerWinBack(Nudge nudge) {
+  nudge
+      .define('welcome_back')
+      .when(
+        nudge
+            .when()
+            .app()
+            .previousSession()
+            .olderThan(const Duration(days: 14)),
+      )
+      .oncePerSession()
+      .cooldown(const Duration(days: 30))
+      .register();
+}
+```
+
+`previousSession()` looks at when the session before the current one started, i.e. how long the
+user had been away when this session began.
+
+## Reaching users who don't come back
+
+An on-device engine can only react once the app runs again. To reach dormant users, reschedule a
+local notification N days ahead at every session: if they come back, it is pushed further; if they
+don't, it fires. Rotate its content — repeated identical messages lose effect.
+
+## Sources
+
+- [Amplitude — Re-engage dormant users](https://amplitude.com/blog/re-engage-dormant-users)
+- [Duolingo — Recurring notifications (KDD 2020)](https://research.duolingo.com/papers/yancey.kdd20.pdf)

@@ -1,0 +1,77 @@
+---
+title: "Funnels"
+description: "Ordered sequences of events, time windows, sessions and drop-off detection."
+---
+
+A funnel checks that a sequence of steps happened in order. Funnels are **loose**: other events,
+and repetitions of the same steps, may happen in between.
+
+```dart
+final checkout = nudge.when().funnel(['view_item', 'add_to_cart', 'purchase']);
+
+checkout.evaluate(); // true once the sequence was completed at least once
+```
+
+Order is decided by insertion order, so steps logged in the same millisecond keep their order and a
+device clock moved backwards cannot reorder them. Once completed, a funnel stays met even if the
+last step happens again later.
+
+## Time window
+
+```dart
+// Every step within 24 hours from the first one
+nudge.when().funnel(['view_item', 'add_to_cart', 'purchase']).within(const Duration(hours: 24))
+```
+
+`timestamp().within(...)` is an alias kept for readability. If an attempt runs out of time, a later
+attempt can still complete the funnel.
+
+## Sessions
+
+```dart
+// Every step in the current session
+nudge.when().funnel(['search', 'purchase']).session().current()   // or .same()
+
+// Every step in one session, whichever it is
+nudge.when().funnel(['search', 'purchase']).session().single()
+
+// Every step outside the current session
+nudge.when().funnel(['search', 'purchase']).session().other()
+```
+
+## Time range
+
+```dart
+// Only steps logged in the last 7 days
+nudge.when().funnel(['onboard', 'invite_friend']).inLast(const Duration(days: 7))
+
+// Only steps logged after a date
+nudge.when().funnel(['onboard', 'invite_friend']).timestamp().greaterThan(DateTime(2026))
+```
+
+Time constraints apply to **every** step, not only the last one.
+
+## Drop-off
+
+`dropOff(after:)` turns a funnel into _"started, but not completed for a while"_ — the core of
+abandoned cart and stuck-in-onboarding scenarios.
+
+```dart
+nudge
+    .when()
+    .funnel(['add_to_cart', 'purchase'])
+    .dropOff(after: const Duration(hours: 24))
+```
+
+It looks at the most recent start of the funnel (the latest occurrence of the first step) and is met
+once `after` has passed without that attempt being completed. It becomes true by the passing of time
+alone: watchers pick the change up on the periodic re-evaluation, on resume and at checkpoints.
+
+## Explaining progress
+
+```dart
+print(nudge.when().funnel(['view', 'cart', 'buy']).within(const Duration(hours: 24)).explain());
+// ✗ funnel(view → cart → buy, within 1d) progress 2/3
+```
+
+`progress` is the furthest any attempt got.

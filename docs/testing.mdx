@@ -1,0 +1,90 @@
+---
+title: "Testing and debugging"
+description: "Test nudges with an in-memory storage and a controllable clock; explain decisions in QA."
+---
+
+## Unit tests
+
+Nudges are logic: test them like logic. Initialize the package with an `InMemoryNudgeStorage`
+(no native library, no files) and a clock you control.
+
+```dart title="test/rating_prompt_test.dart"
+import 'package:clock/clock.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:nudge/nudge.dart';
+
+import 'package:my_app/nudges.dart';
+
+void main() {
+  late DateTime now;
+  late Nudge nudge;
+
+  setUp(() async {
+    TestWidgetsFlutterBinding.ensureInitialized();
+    now = DateTime(2026, 1, 15, 12);
+    nudge = await Nudge.initialize(
+      storage: InMemoryNudgeStorage(),
+      clock: Clock(() => now),
+      reevaluationInterval: Duration.zero,
+    );
+    registerNudges(nudge);
+  });
+
+  tearDown(() => nudge.dispose());
+
+  test('asks after three orders, then waits two weeks', () {
+    for (var i = 0; i < 3; i++) {
+      nudge.logEvent('order_completed');
+    }
+    expect(nudge.checkpoint()?.nudgeId, 'rating_prompt');
+    expect(nudge.checkpoint(), isNull);
+
+    now = now.add(const Duration(days: 15));
+    expect(nudge.checkpoint()?.nudgeId, 'rating_prompt');
+  });
+}
+```
+
+Add `clock` to your `dev_dependencies` to build a `Clock`.
+
+### Sessions in tests
+
+Sessions follow the app lifecycle. Simulate a return from the background through the binding:
+
+```dart
+void backgroundFor(Duration duration) {
+  final binding = WidgetsBinding.instance;
+  binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+  now = now.add(duration);
+  binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+}
+```
+
+### Widget tests
+
+The same setup works with `testWidgets`. Pass `reevaluationInterval: Duration.zero` so no periodic
+timer is left pending, and call `dispose()` in `tearDown`.
+
+## Debugging in QA
+
+When a prompt does not show up, the question is always _why_:
+
+```dart
+print(nudge.explainNudge('rating_prompt'));
+```
+
+```text
+✗ nudge rating_prompt
+  ✓ condition
+    ✓ count(order_completed) = 4 >= 3
+  ✗ cooldown 14d
+    ✗ NOT
+      ✓ fires(nudge rating_prompt, last 14d) = 1 > 0
+  ✓ max 3 fires per 365d
+    ✓ fires(nudge rating_prompt, last 365d) = 1 < 3
+```
+
+Any condition can be explained with `condition.explain()` or `nudge.explain(condition)`. A debug
+screen that lists `nudge.nudges` with their explanations, plus buttons for
+`nudge.fire(id, force: true)` and `nudge.resetNudge(id)`, makes QA independent from the
+thresholds.
